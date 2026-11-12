@@ -3,14 +3,15 @@
 # Start:  docker compose up -d
 # Open:   http://localhost:8080
 #
+# ILIAS is installed automatically on the first start (ILIAS_AUTO_SETUP=1).
+# The root password is printed in the container log:  docker compose logs ilias
+# Then install and activate the plugin under Administration > Extending ILIAS > Plugins.
+#
 # The plugin folder of this repository is mounted at the path ILIAS expects
 # for PageComponent plugins, so no copy or git clone is needed inside the container.
-# After the first start, follow the ILIAS setup in the browser or with
-# `docker compose exec ilias php setup/setup.php ...`, then install and activate
-# the plugin under Administration > Extending ILIAS > Plugins.
 #
-# Note: the environment variables of the srsolutions/ilias image are not verified
-# against its documentation. Check the image's Docker Hub page if the setup fails.
+# Environment variables are taken from the srsolutions/ilias image README
+# (tag 9-php8.2-apache / 9.24-php8.2-apache, ILIAS < 10 data path).
 
 services:
   mysql:
@@ -34,18 +35,26 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    # Bound to loopback so the test instance is not reachable from other hosts
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     environment:
+      ILIAS_AUTO_SETUP: "1"
       ILIAS_DB_HOST: mysql
       ILIAS_DB_NAME: ilias
       ILIAS_DB_USER: ilias
       ILIAS_DB_PASSWORD: ilias
+      # Must match the URL used in the browser, otherwise generated links point to the container hostname
+      ILIAS_HTTP_PATH: http://localhost:8080
     volumes:
+      # Web-accessible data directory (ILIAS < 10 path)
       - ilias-data:/var/www/html/data
+      # Private data directory where uploaded resources are stored
+      - ilias-iliasdata:/var/iliasdata/ilias
       # This repository, mounted as the plugin folder inside ILIAS
       - ./:/var/www/html/Customizing/global/plugins/Services/COPage/PageComponent/AIChatPageComponent
 
 volumes:
   mysql-data:
   ilias-data:
+  ilias-iliasdata:
