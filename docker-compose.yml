@@ -1,0 +1,51 @@
+# Local ILIAS 9.24 test environment with the AIChatPageComponent plugin mounted.
+#
+# Start:  docker compose up -d
+# Open:   http://localhost:8080
+#
+# The plugin folder of this repository is mounted at the path ILIAS expects
+# for PageComponent plugins, so no copy or git clone is needed inside the container.
+# After the first start, follow the ILIAS setup in the browser or with
+# `docker compose exec ilias php setup/setup.php ...`, then install and activate
+# the plugin under Administration > Extending ILIAS > Plugins.
+#
+# Note: the environment variables of the srsolutions/ilias image are not verified
+# against its documentation. Check the image's Docker Hub page if the setup fails.
+
+services:
+  mysql:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: ilias-root
+      MARIADB_DATABASE: ilias
+      MARIADB_USER: ilias
+      MARIADB_PASSWORD: ilias
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  ilias:
+    image: srsolutions/ilias:9.24-php8.2-apache
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    environment:
+      ILIAS_DB_HOST: mysql
+      ILIAS_DB_NAME: ilias
+      ILIAS_DB_USER: ilias
+      ILIAS_DB_PASSWORD: ilias
+    volumes:
+      - ilias-data:/var/www/html/data
+      # This repository, mounted as the plugin folder inside ILIAS
+      - ./:/var/www/html/Customizing/global/plugins/Services/COPage/PageComponent/AIChatPageComponent
+
+volumes:
+  mysql-data:
+  ilias-data:
