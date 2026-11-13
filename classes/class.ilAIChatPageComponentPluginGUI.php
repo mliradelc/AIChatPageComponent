@@ -1260,7 +1260,7 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
     {
         $details = [];
         if (!empty($row['rag_retry_at'])) {
-            // The new upload is triggered by the next chat request
+            // The new upload is triggered by the next chat request or the cron job
             $details[] = $row['rag_retry_at'] <= gmdate('Y-m-d H:i:s')
                 ? $this->plugin->txt('rag_file_retry_due')
                 : sprintf($this->plugin->txt('rag_file_retry_at'), $this->formatStoredDateTime($row['rag_retry_at']));

@@ -18,9 +18,12 @@ require_once __DIR__ . "/../vendor/autoload.php";
 /**
  * PageComponent plugin for AI chats on ILIAS pages
  *
+ * Provides a cron job (ilCronJobProvider) that advances the processing of files in
+ * the RAG service.
+ *
  * @author Nadimo Staszak <nadimo.staszak@uni-koeln.de>
  */
-class ilAIChatPageComponentPlugin extends ilPageComponentPlugin
+class ilAIChatPageComponentPlugin extends ilPageComponentPlugin implements ilCronJobProvider
 {
     public const PLUGIN_ID = "pcaic";
 
@@ -54,6 +57,25 @@ class ilAIChatPageComponentPlugin extends ilPageComponentPlugin
         }
 
         return self::$instance;
+    }
+
+    /**
+     * @return ilCronJob[]
+     */
+    public function getCronJobInstances(): array
+    {
+        return [new ilAIChatPageComponentRAGCronJob($this)];
+    }
+
+    /**
+     * @throws OutOfBoundsException if the plugin has no such cron job
+     */
+    public function getCronJobInstance(string $jobId): ilCronJob
+    {
+        if ($jobId === ilAIChatPageComponentRAGCronJob::JOB_ID) {
+            return new ilAIChatPageComponentRAGCronJob($this);
+        }
+        throw new OutOfBoundsException("Unknown cron job: $jobId");
     }
 
     public function getPluginName(): string

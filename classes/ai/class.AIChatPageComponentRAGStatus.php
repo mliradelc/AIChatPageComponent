@@ -19,8 +19,9 @@ namespace ai;
  * Processing state of chat files in the RAG service
  *
  * The RAG processes uploaded files asynchronously. The state is stored per
- * attachment and queried from the RAG by chat requests; the interval between two
- * queries of a chat grows with the time since the last upload. Whether a chat has unprocessed files is decided from the database
+ * attachment and queried from the RAG by chat requests and by the cron job of the
+ * plugin; the interval between two queries of a chat grows with the time since the
+ * last upload. Whether a chat has unprocessed files is decided from the database
  * only. Files whose upload or processing failed are uploaded again with an
  * increasing delay, unless the RAG rejected them. Files the RAG could not delete
  * yet are deleted later.

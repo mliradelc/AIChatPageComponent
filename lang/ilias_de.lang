@@ -237,6 +237,8 @@ rag_file_status_failed#:#Verarbeitung fehlgeschlagen
 rag_file_retry_at#:#neuer Versuch ab %s
 rag_file_retry_due#:#neuer Versuch bei der nächsten Nutzung des Chats
 rag_file_no_retry#:#kein weiterer Versuch; Datei bei Bedarf entfernen und erneut hochladen
+cron_rag_title#:#AI Chat: Dateien in der Dokumentensuche verarbeiten
+cron_rag_description#:#Fragt den Verarbeitungsstatus von Dateien im RAG-Dienst ab, lädt fehlgeschlagene Dateien erneut hoch und löscht Dateien, die noch nicht gelöscht werden konnten. Ohne diesen Job geschieht das nur, wenn ein Chat genutzt wird.
 rag_file_status_direct#:#Wird direkt an die KI übergeben (ohne Dokumentensuche)
 stat_is_online#:#Online
 stat_goto_page#:#Zur Seite springen
