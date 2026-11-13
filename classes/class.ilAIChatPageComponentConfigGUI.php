@@ -322,11 +322,26 @@ class ilAIChatPageComponentConfigGUI extends ilPluginConfigGUI
         $ui_factory = $this->dic->ui()->factory();
         $inputs = [];
 
-        $max_file_size = \platform\AIChatPageComponentConfig::get('max_file_size_mb');
+        $max_file_size = \ILIAS\Plugin\pcaic\Validation\FileUploadValidator::getMaxFileSizeMb();
+        $max_file_size_info = $this->plugin->txt('config_max_file_size_info');
+
+        // PHP rejects larger uploads before the plugin sees them
+        $php_limit = \ILIAS\Plugin\pcaic\Validation\FileUploadValidator::getPhpUploadLimitBytes();
+        if ($php_limit !== null) {
+            $php_limit_mb = round($php_limit / 1024 / 1024, 1);
+            $max_file_size_info .= ' ' . sprintf($this->plugin->txt('config_max_file_size_php_limit'), $php_limit_mb);
+            if (\ILIAS\Plugin\pcaic\Validation\FileUploadValidator::exceedsPhpUploadLimit($max_file_size, $php_limit)) {
+                $this->dic->ui()->mainTemplate()->setOnScreenMessage(
+                    'info',
+                    sprintf($this->plugin->txt('config_max_file_size_php_warning'), $max_file_size, $php_limit_mb)
+                );
+            }
+        }
+
         $inputs['max_file_size_mb'] = $ui_factory->input()->field()->numeric(
             $this->plugin->txt('config_max_file_size'),
-            $this->plugin->txt('config_max_file_size_info')
-        )->withValue($max_file_size ? (int) $max_file_size : 5);
+            $max_file_size_info
+        )->withValue($max_file_size);
 
         $max_attachments = \platform\AIChatPageComponentConfig::get('max_attachments_per_message');
         $inputs['max_attachments_per_message'] = $ui_factory->input()->field()->numeric(

@@ -22,6 +22,71 @@ namespace ILIAS\Plugin\pcaic\Validation;
  */
 class FileUploadValidator
 {
+    /** @var int Maximum size of an uploaded file in MB if none is configured */
+    public const DEFAULT_MAX_FILE_SIZE_MB = 5;
+
+    /**
+     * Maximum size of a file uploaded in the chat, in MB (plugin configuration)
+     *
+     * The only place that reads the setting; checks, messages and the frontend use this value.
+     */
+    public static function getMaxFileSizeMb(): int
+    {
+        $configured = (int) \platform\AIChatPageComponentConfig::get('max_file_size_mb');
+        return $configured > 0 ? $configured : self::DEFAULT_MAX_FILE_SIZE_MB;
+    }
+
+    public static function getMaxFileSizeBytes(): int
+    {
+        return self::getMaxFileSizeMb() * 1024 * 1024;
+    }
+
+    /**
+     * Largest upload PHP accepts, in bytes: the smaller of upload_max_filesize and post_max_size
+     *
+     * @return int|null Null if PHP sets no limit
+     */
+    public static function getPhpUploadLimitBytes(): ?int
+    {
+        $limits = array_filter([
+            self::iniSizeToBytes((string) ini_get('upload_max_filesize')),
+            self::iniSizeToBytes((string) ini_get('post_max_size')),
+        ], static fn(int $bytes): bool => $bytes > 0);
+
+        return $limits === [] ? null : min($limits);
+    }
+
+    /**
+     * Whether the configured maximum file size cannot be reached because PHP rejects such uploads
+     */
+    public static function exceedsPhpUploadLimit(int $max_file_size_mb, ?int $php_limit_bytes): bool
+    {
+        return $php_limit_bytes !== null && $max_file_size_mb * 1024 * 1024 > $php_limit_bytes;
+    }
+
+    /**
+     * Bytes of a php.ini size value such as "8M", "512K", "1G" or "1048576"; 0 or less means unlimited
+     */
+    public static function iniSizeToBytes(string $value): int
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return 0;
+        }
+
+        $number = (int) $value;
+        switch (strtolower($value[strlen($value) - 1])) {
+            case 'g':
+                return $number * 1024 * 1024 * 1024;
+            case 'm':
+                return $number * 1024 * 1024;
+            case 'k':
+                return $number * 1024;
+            default:
+                return $number;
+        }
+    }
+
     private static function getDefaultAllowedExtensions(): array
     {
         $default_types = \platform\AIChatPageComponentConfig::get('default_allowed_file_types');
@@ -79,10 +144,9 @@ class FileUploadValidator
 
     private static function validateFileSize(array $upload_info): array
     {
-        $max_file_size_mb = \platform\AIChatPageComponentConfig::get('max_file_size_mb') ?? 5;
-        $max_size = $max_file_size_mb * 1024 * 1024;
+        $max_file_size_mb = self::getMaxFileSizeMb();
 
-        if ($upload_info['size'] > $max_size) {
+        if ($upload_info['size'] > self::getMaxFileSizeBytes()) {
             return ['success' => false, 'error' => "File too large. Maximum size is {$max_file_size_mb}MB."];
         }
 

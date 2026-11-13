@@ -30,3 +30,4 @@ require_once $plugin_dir . '/classes/ai/class.AIChatPageComponentLLM.php';
 require_once $plugin_dir . '/classes/ai/class.AIChatPageComponentRAMSES.php';
 require_once $plugin_dir . '/classes/ai/class.AIChatPageComponentOpenAI.php';
 require_once $plugin_dir . '/src/Model/Attachment.php';
+require_once $plugin_dir . '/src/Validation/FileUploadValidator.php';
