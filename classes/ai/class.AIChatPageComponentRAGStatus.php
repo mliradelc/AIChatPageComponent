@@ -33,6 +33,8 @@ class AIChatPageComponentRAGStatus
     public const COMPLETED = 'completed';
     public const FAILED = 'failed';
     public const SKIPPED = 'skipped';
+    /** Processed by the RAG, but without searchable content (e.g. a scanned PDF without text) */
+    public const EMPTY = 'empty';
 
     /** @var int Minimum interval between two status checks of a chat, in seconds */
     public const CHECK_INTERVAL = 60;
@@ -72,6 +74,97 @@ class AIChatPageComponentRAGStatus
                 return self::FAILED;
             default:
                 return self::PROCESSING;
+        }
+    }
+
+    /**
+     * Final state of a file the RAG reports as completed
+     *
+     * A file without chunks is never found by the retrieval. The chunk count of the
+     * RAG decides; if the RAG does not report one, a file without text is treated
+     * as empty.
+     *
+     * @param int|null $chunks Chunk count reported by the RAG, null if unknown
+     * @param bool|null $has_text Whether the file contains text, null if unknown
+     */
+    public static function completedState(?int $chunks, ?bool $has_text): string
+    {
+        if ($chunks !== null) {
+            return $chunks > 0 ? self::COMPLETED : self::EMPTY;
+        }
+
+        return $has_text === false ? self::EMPTY : self::COMPLETED;
+    }
+
+    /**
+     * Whether a file contains text the RAG can index
+     *
+     * PDFs: text needs a font, so a PDF without any font resource consists of images
+     * only (e.g. a scan without OCR). Fonts may be stored in compressed object streams.
+     *
+     * @return bool|null Null if it cannot be decided (other file types, encrypted or unreadable PDFs)
+     */
+    public static function hasText(string $content, string $suffix): ?bool
+    {
+        $suffix = strtolower($suffix);
+        if (in_array($suffix, ['txt', 'csv', 'md'], true)) {
+            return trim($content) !== '';
+        }
+        if ($suffix !== 'pdf' || strncmp($content, '%PDF-', 5) !== 0) {
+            return null;
+        }
+        if (strpos($content, '/Font') !== false) {
+            return true;
+        }
+        if (strpos($content, '/Encrypt') !== false) {
+            return null;
+        }
+
+        // Not found in plain objects: search the compressed object streams
+        $undecided = false;
+        $offset = 0;
+        while (($position = strpos($content, '/ObjStm', $offset)) !== false) {
+            $offset = $position + 7;
+            $start = strpos($content, 'stream', $offset);
+            $end = $start === false ? false : strpos($content, 'endstream', $start);
+            if ($start === false || $end === false) {
+                break;
+            }
+            $offset = $end;
+
+            $compressed = ltrim(substr($content, $start + 6, $end - $start - 6), "\r\n");
+            $data = @gzuncompress($compressed, 16 * 1024 * 1024);
+            if ($data === false) {
+                $undecided = true;
+            } elseif (strpos($data, '/Font') !== false) {
+                return true;
+            }
+        }
+
+        return $undecided ? null : false;
+    }
+
+    /**
+     * Whether the stored file of an attachment contains text, see hasText()
+     */
+    private static function attachmentHasText(int $attachment_id): ?bool
+    {
+        try {
+            global $DIC;
+            $irss = $DIC->resourceStorage();
+            $attachment = \ILIAS\Plugin\pcaic\Model\Attachment::loadById($attachment_id);
+            $identification = $attachment !== null ? $attachment->getResourceIdentification() : null;
+            if ($identification === null) {
+                return null;
+            }
+            $suffix = (string) $irss->manage()->getCurrentRevision($identification)->getInformation()->getSuffix();
+            if (!in_array(strtolower($suffix), ['pdf', 'txt', 'csv', 'md'], true)) {
+                return null;
+            }
+            return self::hasText((string) $irss->consume()->stream($identification)->getStream()->getContents(), $suffix);
+        } catch (\Throwable $e) {
+            self::logger()->debug("Text check of attachment $attachment_id failed: " . $e->getMessage());
+            return null;
         }
     }
 
@@ -171,8 +264,16 @@ class AIChatPageComponentRAGStatus
 
             switch (self::mapRemoteStatus($status['status'])) {
                 case self::COMPLETED:
+                    $chunks = $status['chunks'] ?? null;
+                    $state = self::completedState(
+                        $chunks,
+                        $chunks === null ? self::attachmentHasText((int) $row['id']) : null
+                    );
+                    if ($state === self::EMPTY) {
+                        self::logger()->warning("RAG processed attachment " . $row['id'] . " without searchable content");
+                    }
                     $db->manipulate(
-                        "UPDATE pcaic_attachments SET rag_status = " . $db->quote(self::COMPLETED, 'text')
+                        "UPDATE pcaic_attachments SET rag_status = " . $db->quote($state, 'text')
                         . ", rag_status_error = NULL, rag_failed_count = 0, rag_retry_at = NULL"
                         . " WHERE id = " . $db->quote((int) $row['id'], 'integer')
                     );

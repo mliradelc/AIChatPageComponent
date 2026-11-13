@@ -355,7 +355,7 @@ class AIChatPageComponentRAG
      * Processing state of a file in the RAG
      *
      * @param string $entity_id Same value as used for the upload
-     * @return array{status: string, error: string|null}|null Null if the file is unknown or the RAG is not reachable
+     * @return array{status: string, error: string|null, chunks: int|null}|null Null if the file is unknown or the RAG is not reachable
      */
     public function getFileStatus(string $remote_file_id, string $entity_id): ?array
     {
@@ -384,10 +384,38 @@ class AIChatPageComponentRAG
             return null;
         }
 
+        if (strtoupper((string) $data['status']) === self::STATUS_COMPLETED) {
+            // Shows which fields the RAG reports for a processed file (e.g. a chunk count)
+            $this->logger->debug("RAG status of $remote_file_id: " . substr((string) $response, 0, 500));
+        }
+
         return [
             'status' => strtoupper((string) $data['status']),
             'error' => isset($data['error_message']) ? (string) $data['error_message'] : null,
+            'chunks' => self::extractChunkCount($data),
         ];
+    }
+
+    /**
+     * Number of chunks of a file, if the status response of the RAG contains it
+     *
+     * The field is optional; the common names are accepted.
+     *
+     * @return int|null Null if the response contains no chunk count
+     */
+    public static function extractChunkCount(array $status_response): ?int
+    {
+        foreach (['chunk_count', 'chunks_count', 'num_chunks', 'n_chunks', 'total_chunks', 'chunks'] as $key) {
+            $value = $status_response[$key] ?? null;
+            if (is_array($value)) {
+                return count($value);
+            }
+            if (is_int($value) || (is_string($value) && ctype_digit($value))) {
+                return (int) $value;
+            }
+        }
+
+        return null;
     }
 
     /**

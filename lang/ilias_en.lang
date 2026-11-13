@@ -234,6 +234,7 @@ rag_file_status_completed#:#Processed by the document search
 rag_file_status_processing#:#Being processed by the document search
 rag_file_status_pending#:#Waiting for upload to the document search
 rag_file_status_failed#:#Processing failed
+rag_file_status_empty#:#Processed, but no searchable text found (e.g. scanned document without text recognition)
 rag_file_retry_at#:#next attempt from %s
 rag_file_retry_due#:#next attempt on the next use of the chat
 rag_file_status_direct#:#Passed directly to the AI (without document search)

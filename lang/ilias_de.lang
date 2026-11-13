@@ -234,6 +234,7 @@ rag_file_status_completed#:#Von der Dokumentensuche verarbeitet
 rag_file_status_processing#:#Wird von der Dokumentensuche verarbeitet
 rag_file_status_pending#:#Wartet auf Übertragung an die Dokumentensuche
 rag_file_status_failed#:#Verarbeitung fehlgeschlagen
+rag_file_status_empty#:#Verarbeitet, aber kein durchsuchbarer Text gefunden (z. B. gescanntes Dokument ohne Texterkennung)
 rag_file_retry_at#:#neuer Versuch ab %s
 rag_file_retry_due#:#neuer Versuch bei der nächsten Nutzung des Chats
 rag_file_status_direct#:#Wird direkt an die KI übergeben (ohne Dokumentensuche)

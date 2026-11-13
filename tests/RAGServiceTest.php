@@ -171,4 +171,19 @@ class RAGServiceTest extends TestCase
         AIChatPageComponentConfig::set('rag_service_enabled', '0');
         $this->assertFalse(AIChatPageComponentRAG::isAvailable());
     }
+
+    public function testChunkCountIsReadFromStatusResponse(): void
+    {
+        $this->assertSame(42, AIChatPageComponentRAG::extractChunkCount(['status' => 'COMPLETED', 'chunk_count' => 42]));
+        $this->assertSame(0, AIChatPageComponentRAG::extractChunkCount(['status' => 'COMPLETED', 'num_chunks' => '0']));
+        $this->assertSame(2, AIChatPageComponentRAG::extractChunkCount(['chunks' => [['text' => 'a'], ['text' => 'b']]]));
+        $this->assertSame(0, AIChatPageComponentRAG::extractChunkCount(['chunks' => []]));
+    }
+
+    public function testChunkCountIsUnknownIfNotReported(): void
+    {
+        $this->assertNull(AIChatPageComponentRAG::extractChunkCount(['status' => 'COMPLETED', 'error_message' => null]));
+        $this->assertNull(AIChatPageComponentRAG::extractChunkCount(['chunk_count' => null]));
+        $this->assertNull(AIChatPageComponentRAG::extractChunkCount(['chunk_count' => 'many']));
+    }
 }
