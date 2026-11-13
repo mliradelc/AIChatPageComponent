@@ -280,7 +280,7 @@ class AIChatPageComponentRAG
 
         if ($http_code !== 200) {
             $this->logger->error("RAG file upload failed: HTTP $http_code | file=$filename | " . substr($response_preview, 0, 300));
-            throw new AIChatPageComponentException("RAG file upload failed: HTTP $http_code");
+            throw new AIChatPageComponentException("RAG file upload failed: HTTP $http_code", $http_code);
         }
 
         $data = json_decode((string) $response, true);

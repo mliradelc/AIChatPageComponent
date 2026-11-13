@@ -236,6 +236,7 @@ rag_file_status_pending#:#Waiting for upload to the document search
 rag_file_status_failed#:#Processing failed
 rag_file_retry_at#:#next attempt from %s
 rag_file_retry_due#:#next attempt on the next use of the chat
+rag_file_no_retry#:#no further attempt; remove the file and upload it again if necessary
 rag_file_status_direct#:#Passed directly to the AI (without document search)
 stat_is_online#:#Online
 stat_goto_page#:#Go to Page

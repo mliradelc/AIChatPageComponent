@@ -1264,6 +1264,9 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
             $details[] = $row['rag_retry_at'] <= gmdate('Y-m-d H:i:s')
                 ? $this->plugin->txt('rag_file_retry_due')
                 : sprintf($this->plugin->txt('rag_file_retry_at'), $this->formatStoredDateTime($row['rag_retry_at']));
+        } else {
+            // Rejected by the RAG or failed too often
+            $details[] = $this->plugin->txt('rag_file_no_retry');
         }
         if (!empty($row['rag_status_error'])) {
             $details[] = mb_substr((string) $row['rag_status_error'], 0, 160);
