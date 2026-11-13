@@ -29,4 +29,5 @@ require_once $plugin_dir . '/classes/platform/class.AIChatPageComponentException
 require_once $plugin_dir . '/classes/ai/class.AIChatPageComponentLLM.php';
 require_once $plugin_dir . '/classes/ai/class.AIChatPageComponentRAMSES.php';
 require_once $plugin_dir . '/classes/ai/class.AIChatPageComponentOpenAI.php';
+require_once $plugin_dir . '/classes/ai/class.AIChatPageComponentLLMRegistry.php';
 require_once $plugin_dir . '/src/Model/Attachment.php';

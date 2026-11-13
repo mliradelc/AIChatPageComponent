@@ -63,6 +63,11 @@ class AIChatPageComponentRAMSES extends AIChatPageComponentLLM
             $plugin->txt('config_service_enabled_info')
         )->withValue($ramses_enabled === '1');
 
+        $inputs['ramses_service_label'] = $ui_factory->input()->field()->text(
+            $plugin->txt('config_service_label'),
+            sprintf($plugin->txt('config_service_label_info'), self::getServiceName())
+        )->withMaxLength(100)->withValue((string) (\platform\AIChatPageComponentConfig::get('ramses_service_label') ?? ''));
+
         $api_url = \platform\AIChatPageComponentConfig::get('ramses_api_url');
         $inputs['ramses_api_url'] = $ui_factory->input()->field()->text(
             $plugin->txt('config_api_url'),

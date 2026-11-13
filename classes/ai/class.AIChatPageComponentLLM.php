@@ -248,6 +248,18 @@ abstract class AIChatPageComponentLLM
     abstract public static function getServiceDescription(): string;
 
     /**
+     * Name shown for the service in tabs and selections
+     *
+     * Any OpenAI-compatible API can be configured in a service, so the administrator
+     * can replace the built-in name by the name of the provider that is actually used.
+     */
+    public static function getDisplayName(): string
+    {
+        $label = \platform\AIChatPageComponentConfig::get(static::getServiceId() . '_service_label');
+        return is_string($label) && trim($label) !== '' ? trim($label) : static::getServiceName();
+    }
+
+    /**
      * @return array<string, \ILIAS\UI\Component\Input\Field\FormInput> Inputs of the service tab
      */
     abstract public function getConfigurationFormInputs(): array;

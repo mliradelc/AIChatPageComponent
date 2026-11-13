@@ -91,6 +91,8 @@ config_force_default_ai_service_info#:#When enabled, all chat instances will be 
 tab_general_config#:#General Configuration
 config_service_enabled#:#Enable Service
 config_service_enabled_info#:#When enabled, this service will be available as an AI service option for chat instances
+config_service_label#:#Display Name
+config_service_label_info#:#Name shown for this service in the configuration tabs and in the service selection of chats, e.g. the name of the provider whose API is configured below. Leave empty to use "%s".
 config_api_url#:#API Base URL
 config_api_url_info#:#Base URL for API endpoints. Specific endpoints like /v1/chat/completions or /v1/models are automatically appended.
 config_api_token#:#API Token
