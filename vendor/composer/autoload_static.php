@@ -44,6 +44,7 @@ class ComposerStaticInit52975239271cd8444140239aa621a8e3
         'ilAIChatPageComponentImporter' => __DIR__ . '/../..' . '/classes/class.ilAIChatPageComponentImporter.php',
         'ilAIChatPageComponentPlugin' => __DIR__ . '/../..' . '/classes/class.ilAIChatPageComponentPlugin.php',
         'ilAIChatPageComponentPluginGUI' => __DIR__ . '/../..' . '/classes/class.ilAIChatPageComponentPluginGUI.php',
+        'ilAIChatPageComponentRAGCronJob' => __DIR__ . '/../..' . '/classes/class.ilAIChatPageComponentRAGCronJob.php',
         'platform\\AIChatPageComponentConfig' => __DIR__ . '/../..' . '/classes/platform/class.AIChatPageComponentConfig.php',
         'platform\\AIChatPageComponentException' => __DIR__ . '/../..' . '/classes/platform/class.AIChatPageComponentException.php',
     );
