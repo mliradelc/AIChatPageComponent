@@ -593,7 +593,7 @@ class ilAIChatPageComponentConfigGUI extends ilPluginConfigGUI
             $service_id_cap = ucfirst($service_id);
             $tabs->addTab(
                 $service_id,
-                $service_class::getServiceName(),
+                $service_class::getDisplayName(),
                 $this->ctrl->getLinkTargetByClass(get_class($this), "show{$service_id_cap}Config")
             );
         }
@@ -728,8 +728,8 @@ class ilAIChatPageComponentConfigGUI extends ilPluginConfigGUI
 
         $section = $ui_factory->input()->field()->section(
             $service_inputs,
-            $service_class::getServiceName(),
-            $service_class::getServiceDescription()
+            $service_class::getDisplayName(),
+            $this->getServiceSectionDescription($service_class)
         );
 
         $service_id_cap = ucfirst($service_id);
@@ -741,6 +741,19 @@ class ilAIChatPageComponentConfigGUI extends ilPluginConfigGUI
         $button_html = $this->buildRefreshModelsButton($service_id);
 
         return $form_html . $button_html;
+    }
+
+    /**
+     * Built-in description of a service; omitted if the administrator renamed the
+     * service, because it names the provider the service was made for
+     *
+     * @param class-string<\ai\AIChatPageComponentLLM> $service_class
+     */
+    private function getServiceSectionDescription(string $service_class): ?string
+    {
+        return $service_class::getDisplayName() === $service_class::getServiceName()
+            ? $service_class::getServiceDescription()
+            : null;
     }
 
     /**
@@ -804,8 +817,8 @@ class ilAIChatPageComponentConfigGUI extends ilPluginConfigGUI
 
             $section = $ui_factory->input()->field()->section(
                 $service_inputs,
-                $service_class::getServiceName(),
-                $service_class::getServiceDescription()
+                $service_class::getDisplayName(),
+                $this->getServiceSectionDescription($service_class)
             );
 
             $service_id_cap = ucfirst($service_id);

@@ -91,6 +91,8 @@ config_force_default_ai_service_info#:#Wenn aktiviert, werden alle Chat-Instanze
 tab_general_config#:#Allgemeine Konfiguration
 config_service_enabled#:#Service aktivieren
 config_service_enabled_info#:#Wenn aktiviert, steht dieser Service als KI-Service-Option für Chat-Instanzen zur Verfügung
+config_service_label#:#Anzeigename
+config_service_label_info#:#Name, unter dem dieser Service in den Konfigurations-Tabs und in der Service-Auswahl der Chats angezeigt wird, z. B. der Name des Anbieters, dessen API unten eingetragen ist. Leer lassen, um „%s“ zu verwenden.
 config_api_url#:#API Basis-URL
 config_api_url_info#:#Basis-URL für API-Endpunkte. Spezifische Endpunkte wie /v1/chat/completions oder /v1/models werden automatisch angehängt.
 config_api_token#:#API Token
