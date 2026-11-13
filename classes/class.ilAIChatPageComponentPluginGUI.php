@@ -1632,9 +1632,7 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
         $tpl->setVariable("SOURCE_NEXT", htmlspecialchars($this->plugin->txt('source_next')));
         $tpl->setVariable("SCROLL_TO_BOTTOM", htmlspecialchars($this->plugin->txt('scroll_to_bottom')));
 
-        $max_size_config = \platform\AIChatPageComponentConfig::get('max_file_size_mb');
-        $max_size_mb = $max_size_config ? (int) $max_size_config : 5;
-        $tpl->setVariable("MAX_FILE_SIZE_MB", $max_size_mb);
+        $tpl->setVariable("MAX_FILE_SIZE_MB", FileUploadValidator::getMaxFileSizeMb());
 
         $max_attachments_config = \platform\AIChatPageComponentConfig::get('max_attachments_per_message');
         $max_attachments = $max_attachments_config ? (int) $max_attachments_config : 5;
@@ -1661,9 +1659,7 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
         }
 
         $error_max_attachments = sprintf($error_max_attachments_template, $max_attachments);
-        $max_file_size_mb_config = \platform\AIChatPageComponentConfig::get('max_file_size_mb');
-        $max_file_size_mb = $max_file_size_mb_config ? (int) $max_file_size_mb_config : 5;
-        $error_file_too_large = sprintf($error_file_too_large_template, $max_file_size_mb);
+        $error_file_too_large = sprintf($error_file_too_large_template, FileUploadValidator::getMaxFileSizeMb());
 
         // These messages are completed by JavaScript with runtime values
         $error_file_type_not_allowed = $error_file_type_not_allowed_template;
