@@ -441,6 +441,7 @@ try {
                 $attachment->save();
 
                 $enable_rag = $rag_enabled;
+                $rag_pending = false;
 
                 $revision = $resource_storage->manage()->getCurrentRevision($resource_id);
                 $suffix = strtolower($revision->getInformation()->getSuffix());
@@ -457,31 +458,46 @@ try {
                         $original_filename = $revision->getTitle();
                         $safe_filename = preg_replace('/[^a-zA-Z0-9_.-]/', '_', $original_filename);
                         $temp_file = sys_get_temp_dir() . '/' . uniqid() . '_' . $safe_filename;
-                        file_put_contents($temp_file, $content);
 
-                        $logger->debug("Prepared temp file for RAG upload: $temp_file | original=$original_filename | size=" . strlen($content) . " | suffix=$suffix");
+                        try {
+                            file_put_contents($temp_file, $content);
 
-                        $session = ChatSession::getOrCreateForUserAndChat($user_id, $chat_id);
-                        $session_id = $session->getSessionId();
+                            $logger->debug("Prepared temp file for RAG upload: $temp_file | original=$original_filename | size=" . strlen($content) . " | suffix=$suffix");
 
-                        $rag_response = $llm->uploadFileToRAG($temp_file, (string) $session_id, $original_filename);
+                            $session = ChatSession::getOrCreateForUserAndChat($user_id, $chat_id);
+                            $session_id = $session->getSessionId();
 
-                        $attachment->setRAGCollectionId($rag_response['collection_id']);
-                        $attachment->setRAGRemoteFileId($rag_response['remote_file_id']);
-                        $attachment->setRAGUploadedAt(date('Y-m-d H:i:s'));
-                        $attachment->save();
-                        \ai\AIChatPageComponentRAGStatus::markUploaded((int) $attachment->getId());
+                            $rag_response = $llm->uploadFileToRAG($temp_file, (string) $session_id, $original_filename);
 
-                        @unlink($temp_file);
+                            $attachment->setRAGCollectionId($rag_response['collection_id']);
+                            $attachment->setRAGRemoteFileId($rag_response['remote_file_id']);
+                            $attachment->setRAGUploadedAt(date('Y-m-d H:i:s'));
+                            $attachment->save();
+                            \ai\AIChatPageComponentRAGStatus::markUploaded((int) $attachment->getId());
+                        } catch (\Exception $e) {
+                            // The file is stored; it is sent to the RAG again when the message is sent
+                            $rag_pending = true;
+                            $logger->warning("RAG upload of chat attachment " . $attachment->getId()
+                                . " failed, it is repeated when the message is sent: " . $e->getMessage());
+                        } finally {
+                            @unlink($temp_file);
+                        }
                     } else {
                         // Other types (e.g. images) are sent to the AI service directly
                         $logger->debug("File type '$suffix' is not a RAG type — storing for multimodal embedding");
                     }
                 }
 
+                // Read the processing state set by the RAG upload
+                $attachment->load();
+                $attachment_data = $attachment->toArray();
+                if ($rag_pending) {
+                    $attachment_data['rag_status'] = 'pending';
+                }
+
                 echo json_encode([
                     'success' => true,
-                    'attachment' => $attachment->toArray()
+                    'attachment' => $attachment_data
                 ]);
 
             } catch (\Exception $e) {
@@ -490,6 +506,43 @@ try {
                 ]);
                 echo json_encode(['error' => 'File upload failed. Please try again.']);
             }
+            break;
+
+        case 'rag_status':
+            header('Content-Type: application/json');
+
+            // Processing state of the chat uploads of the user in the RAG
+            if ($is_anonymous) {
+                echo json_encode(['success' => true, 'files' => new \stdClass()]);
+                exit;
+            }
+
+            $chat_config = new ChatConfig($chat_id);
+            if (!$chat_config->exists()) {
+                echo json_encode(['error' => 'Chat not found']);
+                exit;
+            }
+
+            if (!checkChatAccess($chat_config)) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Access denied']);
+                exit;
+            }
+
+            try {
+                $llm = createLLMInstance(getEffectiveAiService($chat_config));
+                if (isRagEnabledForChat($chat_config, $llm)) {
+                    // Queries the RAG only if the last check of the chat is old enough
+                    \ai\AIChatPageComponentRAGStatus::refreshChat($chat_id);
+                }
+            } catch (\Exception $e) {
+                $logger->warning("RAG status check failed: " . $e->getMessage());
+            }
+
+            echo json_encode([
+                'success' => true,
+                'files' => (object) \ai\AIChatPageComponentRAGStatus::getChatUploadStates($chat_id, $user_id)
+            ]);
             break;
 
         case 'load_chat':

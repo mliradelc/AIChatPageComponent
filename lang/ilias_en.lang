@@ -237,6 +237,11 @@ rag_file_status_failed#:#Processing failed
 rag_file_retry_at#:#next attempt from %s
 rag_file_retry_due#:#next attempt on the next use of the chat
 rag_file_status_direct#:#Passed directly to the AI (without document search)
+stat_chat_uploads#:#Files uploaded in the chat (all users)
+rag_upload_processing#:#Being processed for the document search …
+rag_upload_completed#:#Ready for the document search
+rag_upload_failed#:#Processing failed, a new attempt follows
+rag_upload_empty#:#No searchable text found
 stat_is_online#:#Online
 stat_goto_page#:#Go to Page
 stat_toggle_online#:#Set Online

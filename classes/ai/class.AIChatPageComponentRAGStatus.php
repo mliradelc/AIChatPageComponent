@@ -154,7 +154,7 @@ class AIChatPageComponentRAGStatus
         $db = self::db();
         $rag = new AIChatPageComponentRAG();
         $result = $db->query(
-            "SELECT a.id, a.rag_remote_file_id, a.background_file, a.chat_id, m.session_id"
+            "SELECT a.id, a.rag_remote_file_id, a.background_file, a.chat_id, a.user_id, m.session_id"
             . " FROM pcaic_attachments a LEFT JOIN pcaic_messages m ON m.message_id = a.message_id"
             . " WHERE a.chat_id = " . $db->quote($chat_id, 'text')
             . " AND a.rag_status = " . $db->quote(self::PROCESSING, 'text')
@@ -164,6 +164,14 @@ class AIChatPageComponentRAGStatus
         while ($row = $db->fetchAssoc($result)) {
             // Entity as used for the upload: chat for background files, session for chat uploads
             $entity_id = (int) $row['background_file'] === 1 ? (string) $row['chat_id'] : (string) $row['session_id'];
+            if ($entity_id === '') {
+                // Chat upload that is not sent with a message yet: uploaded for the session of the user
+                $session = \ILIAS\Plugin\pcaic\Model\ChatSession::findForUserAndChat((int) $row['user_id'], $chat_id);
+                if ($session === null) {
+                    continue;
+                }
+                $entity_id = $session->getSessionId();
+            }
             $status = $rag->getFileStatus((string) $row['rag_remote_file_id'], $entity_id);
             if ($status === null) {
                 continue;
@@ -186,6 +194,50 @@ class AIChatPageComponentRAGStatus
 
         self::processDeletionQueue();
         return true;
+    }
+
+    /**
+     * Processing states of the files a user uploaded in the chat
+     *
+     * @return array<int, string> Attachment ID => state; files that are not handled by the RAG are omitted
+     */
+    public static function getChatUploadStates(string $chat_id, int $user_id): array
+    {
+        $db = self::db();
+        $result = $db->query(
+            "SELECT id, rag_status FROM pcaic_attachments WHERE chat_id = " . $db->quote($chat_id, 'text')
+            . " AND user_id = " . $db->quote($user_id, 'integer')
+            . " AND background_file = 0 AND rag_status IS NOT NULL"
+            . " AND rag_status <> " . $db->quote(self::SKIPPED, 'text')
+        );
+
+        $states = [];
+        while ($row = $db->fetchAssoc($result)) {
+            $states[(int) $row['id']] = (string) $row['rag_status'];
+        }
+        return $states;
+    }
+
+    /**
+     * Number of chat uploads of all users of the chat by processing state
+     *
+     * @return array<string, int> State => number of files
+     */
+    public static function countChatUploadStates(string $chat_id): array
+    {
+        $db = self::db();
+        $result = $db->query(
+            "SELECT rag_status, COUNT(*) cnt FROM pcaic_attachments WHERE chat_id = " . $db->quote($chat_id, 'text')
+            . " AND background_file = 0 AND rag_status IS NOT NULL"
+            . " AND rag_status <> " . $db->quote(self::SKIPPED, 'text')
+            . " GROUP BY rag_status"
+        );
+
+        $counts = [];
+        while ($row = $db->fetchAssoc($result)) {
+            $counts[(string) $row['rag_status']] = (int) $row['cnt'];
+        }
+        return $counts;
     }
 
     /**

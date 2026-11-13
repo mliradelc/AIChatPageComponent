@@ -382,6 +382,13 @@ class AIChatPageComponent {
       sourcesLabel: container.dataset.sourcesLabel || 'Quellen',
       ragIncompleteNotice: container.dataset.ragIncompleteNotice
         || 'Some background files have not been processed yet. The answer may be incomplete.',
+      ragUploadStatus: {
+        pending: container.dataset.ragUploadProcessing || 'Being processed for the document search …',
+        processing: container.dataset.ragUploadProcessing || 'Being processed for the document search …',
+        completed: container.dataset.ragUploadCompleted || 'Ready for the document search',
+        failed: container.dataset.ragUploadFailed || 'Processing failed, a new attempt follows',
+        empty: container.dataset.ragUploadEmpty || 'No searchable text found',
+      },
       pageLabel: container.dataset.pageLabel || 'Seite',
       pagesLabel: container.dataset.pagesLabel || 'Seiten',
       tableCopy: container.dataset.tableCopy || 'Copy table',
@@ -1599,6 +1606,7 @@ class AIChatPageComponent {
         } else if (attachment.download_url) {
           this.createGenericAttachment(attachment, attachmentsDiv);
         }
+        this.appendRagStatusBadge(attachmentsDiv, attachment);
       });
 
       if (role === 'user') {
@@ -3343,6 +3351,7 @@ class AIChatPageComponent {
         debug('AIChatPageComponent: Creating document preview for attachment', index);
         this.createUploadDocumentPreview(attachment, index);
       }
+      this.appendRagStatusBadge(this.attachmentsList, attachment);
     });
 
     debug('AIChatPageComponent: updateAttachmentsDisplay completed');
@@ -3817,6 +3826,112 @@ class AIChatPageComponent {
         }
       }, 400);
     }, 2000);
+  }
+
+  /**
+   * Show the processing state of an uploaded file in the document search next to the file
+   *
+   * Files that are not handled by the document search have no state. While a file
+   * is being processed, the state is queried from the server.
+   *
+   * @param {HTMLElement} container - Element the badge is appended to
+   * @param {Object} attachment - Attachment data with id and rag_status
+   */
+  appendRagStatusBadge(container, attachment) {
+    if (!container || !attachment || !this.lang.ragUploadStatus[attachment.rag_status]) {
+      return;
+    }
+
+    const badge = document.createElement('div');
+    badge.className = 'ai-chat-rag-status';
+    badge.dataset.attachmentId = attachment.id;
+    this.setRagStatusBadge(badge, attachment.rag_status);
+    container.appendChild(badge);
+
+    if (this.isRagStatusPending(attachment.rag_status)) {
+      this.startRagStatusPolling();
+    }
+  }
+
+  setRagStatusBadge(badge, status) {
+    badge.dataset.status = status;
+    badge.textContent = this.lang.ragUploadStatus[status];
+  }
+
+  isRagStatusPending(status) {
+    // Failed files are uploaded again by the server
+    return status === 'pending' || status === 'processing' || status === 'failed';
+  }
+
+  /**
+   * Query the processing states until all shown files are processed: every 5 seconds
+   * in the first minute, then every 30 seconds, after 10 minutes once per minute,
+   * at most for 30 minutes
+   */
+  startRagStatusPolling() {
+    if (this.ragStatusTimer || this.isAnonymous) {
+      return;
+    }
+    this.ragStatusPollingSince = Date.now();
+    this.scheduleRagStatusPoll();
+  }
+
+  scheduleRagStatusPoll() {
+    const elapsed = Date.now() - this.ragStatusPollingSince;
+    if (elapsed > 30 * 60 * 1000) {
+      this.ragStatusTimer = null;
+      return;
+    }
+
+    let delay = 60000;
+    if (elapsed < 60000) {
+      delay = 5000;
+    } else if (elapsed < 600000) {
+      delay = 30000;
+    }
+    this.ragStatusTimer = setTimeout(() => this.pollRagStatus(), delay);
+  }
+
+  async pollRagStatus() {
+    this.ragStatusTimer = null;
+
+    let files = {};
+    try {
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'rag_status',
+          chat_id: this.chatId,
+        }),
+      });
+      const data = response.ok ? await response.json() : {};
+      files = data.files || {};
+    } catch (error) {
+      debugError('AIChatPageComponent: RAG status request failed:', error);
+    }
+
+    // Keep the state of files that are not sent yet, their preview is rendered again
+    this.attachments.forEach((attachment) => {
+      if (files[attachment.id]) {
+        attachment.rag_status = files[attachment.id];
+      }
+    });
+
+    let pending = false;
+    this.container.querySelectorAll('.ai-chat-rag-status').forEach((badge) => {
+      const status = files[badge.dataset.attachmentId];
+      if (status && this.lang.ragUploadStatus[status]) {
+        this.setRagStatusBadge(badge, status);
+      }
+      pending = pending || this.isRagStatusPending(badge.dataset.status);
+    });
+
+    if (pending && !this.ragStatusTimer) {
+      this.scheduleRagStatusPoll();
+    }
   }
 
   /**
