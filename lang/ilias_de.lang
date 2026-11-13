@@ -237,6 +237,11 @@ rag_file_status_failed#:#Verarbeitung fehlgeschlagen
 rag_file_retry_at#:#neuer Versuch ab %s
 rag_file_retry_due#:#neuer Versuch bei der nächsten Nutzung des Chats
 rag_file_status_direct#:#Wird direkt an die KI übergeben (ohne Dokumentensuche)
+stat_chat_uploads#:#Im Chat hochgeladene Dateien (alle Nutzer)
+rag_upload_processing#:#Wird für die Dokumentensuche verarbeitet …
+rag_upload_completed#:#Bereit für die Dokumentensuche
+rag_upload_failed#:#Verarbeitung fehlgeschlagen, ein neuer Versuch folgt
+rag_upload_empty#:#Kein durchsuchbarer Text gefunden
 stat_is_online#:#Online
 stat_goto_page#:#Zur Seite springen
 stat_toggle_online#:#Online schalten

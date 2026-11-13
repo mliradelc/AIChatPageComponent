@@ -1200,6 +1200,17 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
             }
         }
 
+        // Files uploaded by users in the chat: numbers only, the files belong to the users
+        if ($rag_enabled) {
+            $upload_states = [];
+            foreach (\ai\AIChatPageComponentRAGStatus::countChatUploadStates($chat_id) as $state => $count) {
+                $upload_states[] = $this->plugin->txt($this->getRagFileStatusKey(true, $state)) . ' (' . $count . ')';
+            }
+            if ($upload_states !== []) {
+                $items[$this->plugin->txt('stat_chat_uploads')] = $ui_factory->listing()->unordered($upload_states);
+            }
+        }
+
         if ($items === []) {
             return null;
         }
@@ -1623,6 +1634,10 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
 
         $tpl->setVariable("SOURCES_LABEL", htmlspecialchars($this->plugin->txt('sources_label')));
         $tpl->setVariable("RAG_INCOMPLETE_NOTICE", htmlspecialchars($this->plugin->txt('rag_incomplete_notice')));
+        $tpl->setVariable("RAG_UPLOAD_PROCESSING", htmlspecialchars($this->plugin->txt('rag_upload_processing')));
+        $tpl->setVariable("RAG_UPLOAD_COMPLETED", htmlspecialchars($this->plugin->txt('rag_upload_completed')));
+        $tpl->setVariable("RAG_UPLOAD_FAILED", htmlspecialchars($this->plugin->txt('rag_upload_failed')));
+        $tpl->setVariable("RAG_UPLOAD_EMPTY", htmlspecialchars($this->plugin->txt('rag_upload_empty')));
         $tpl->setVariable("PAGE_LABEL", htmlspecialchars($this->plugin->txt('page_label')));
         $tpl->setVariable("PAGES_LABEL", htmlspecialchars($this->plugin->txt('pages_label')));
         $this->setRenderingLabels($tpl);

@@ -1729,6 +1729,20 @@
     font-size: 0.85em;
 }
 
+.ai-chat-rag-status {
+    align-self: center;
+    padding: 2px 8px;
+    border-radius: var(--chat-radius-small);
+    background: var(--chat-surface-sm);
+    color: var(--chat-text-secondary);
+    font-size: 0.8em;
+}
+
+.ai-chat-rag-status[data-status="failed"],
+.ai-chat-rag-status[data-status="empty"] {
+    border-left: 3px solid var(--chat-warning);
+}
+
 .ai-chat-sources-row {
     display: flex;
     flex-direction: column;
