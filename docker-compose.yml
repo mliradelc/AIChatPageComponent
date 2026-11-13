@@ -4,8 +4,10 @@
 # Open:   http://localhost:8080
 #
 # ILIAS is installed automatically on the first start (ILIAS_AUTO_SETUP=1).
-# The root password is printed in the container log:  docker compose logs ilias
+# Set ILIAS_ROOT_PASSWORD in the environment to choose the root password; if it is unset, a random
+# one is printed in the container log on first install:  docker compose logs ilias
 # Then install and activate the plugin under Administration > Extending ILIAS > Plugins.
+# See docs/local-ilias.md and scripts/ilias-dev.sh (snapshots, restore, artifact refresh).
 #
 # The plugin folder of this repository is mounted at the path ILIAS expects
 # for PageComponent plugins, so no copy or git clone is needed inside the container.
@@ -21,7 +23,9 @@ services:
       MARIADB_DATABASE: ilias
       MARIADB_USER: ilias
       MARIADB_PASSWORD: ilias
-    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    # utf8mb4 makes ILIAS's wide varchar(4000) columns (e.g. crs_settings) exceed InnoDB's
+    # 65535-byte row limit during auto-setup, so use utf8 (utf8mb3) like the other local ILIAS stacks.
+    command: ["--character-set-server=utf8", "--collation-server=utf8_general_ci"]
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
@@ -40,6 +44,10 @@ services:
       - "127.0.0.1:8080:80"
     environment:
       ILIAS_AUTO_SETUP: "1"
+      # Core install only: the plugin is installed after setup, once ILIAS has rebuilt its artifacts
+      ILIAS_INSTALL_ARGUMENTS: "--no-plugins"
+      # Optional. If empty, a random root password is generated on the first install and printed in the log.
+      ILIAS_ROOT_PASSWORD: ${ILIAS_ROOT_PASSWORD:-}
       ILIAS_DB_HOST: mysql
       ILIAS_DB_NAME: ilias
       ILIAS_DB_USER: ilias
