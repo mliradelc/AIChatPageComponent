@@ -457,22 +457,29 @@ try {
                         $original_filename = $revision->getTitle();
                         $safe_filename = preg_replace('/[^a-zA-Z0-9_.-]/', '_', $original_filename);
                         $temp_file = sys_get_temp_dir() . '/' . uniqid() . '_' . $safe_filename;
-                        file_put_contents($temp_file, $content);
 
-                        $logger->debug("Prepared temp file for RAG upload: $temp_file | original=$original_filename | size=" . strlen($content) . " | suffix=$suffix");
+                        try {
+                            file_put_contents($temp_file, $content);
 
-                        $session = ChatSession::getOrCreateForUserAndChat($user_id, $chat_id);
-                        $session_id = $session->getSessionId();
+                            $logger->debug("Prepared temp file for RAG upload: $temp_file | original=$original_filename | size=" . strlen($content) . " | suffix=$suffix");
 
-                        $rag_response = $llm->uploadFileToRAG($temp_file, (string) $session_id, $original_filename);
+                            $session = ChatSession::getOrCreateForUserAndChat($user_id, $chat_id);
+                            $session_id = $session->getSessionId();
 
-                        $attachment->setRAGCollectionId($rag_response['collection_id']);
-                        $attachment->setRAGRemoteFileId($rag_response['remote_file_id']);
-                        $attachment->setRAGUploadedAt(date('Y-m-d H:i:s'));
-                        $attachment->save();
-                        \ai\AIChatPageComponentRAGStatus::markUploaded((int) $attachment->getId());
+                            $rag_response = $llm->uploadFileToRAG($temp_file, (string) $session_id, $original_filename);
 
-                        @unlink($temp_file);
+                            $attachment->setRAGCollectionId($rag_response['collection_id']);
+                            $attachment->setRAGRemoteFileId($rag_response['remote_file_id']);
+                            $attachment->setRAGUploadedAt(date('Y-m-d H:i:s'));
+                            $attachment->save();
+                            \ai\AIChatPageComponentRAGStatus::markUploaded((int) $attachment->getId());
+                        } catch (\Exception $e) {
+                            // The file is stored; it is sent to the RAG again when the message is sent
+                            $logger->warning("RAG upload of chat attachment " . $attachment->getId()
+                                . " failed, it is repeated when the message is sent: " . $e->getMessage());
+                        } finally {
+                            @unlink($temp_file);
+                        }
                     } else {
                         // Other types (e.g. images) are sent to the AI service directly
                         $logger->debug("File type '$suffix' is not a RAG type — storing for multimodal embedding");
