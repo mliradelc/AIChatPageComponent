@@ -379,6 +379,15 @@ try {
                 exit;
             }
 
+            $max_file_size_mb = \ILIAS\Plugin\pcaic\Validation\FileUploadValidator::getMaxFileSizeMb();
+
+            // Rejected by PHP (upload_max_filesize) before the plugin limit could be checked
+            if (in_array($uploaded_file->getError(), [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+                $logger->warning("Chat upload rejected by the PHP upload limit; the plugin allows {$max_file_size_mb} MB");
+                echo json_encode(['error' => 'File too large. The server does not accept files of this size.']);
+                exit;
+            }
+
             if ($uploaded_file->getError() !== UPLOAD_ERR_OK) {
                 echo json_encode(['error' => 'File upload failed']);
                 exit;
@@ -393,8 +402,7 @@ try {
             }
 
             // Enforced here, the browser check can be bypassed
-            $max_file_size_mb = (int) (\platform\AIChatPageComponentConfig::get('max_file_size_mb') ?: 5);
-            if ((int) $uploaded_file->getSize() > $max_file_size_mb * 1024 * 1024) {
+            if ((int) $uploaded_file->getSize() > \ILIAS\Plugin\pcaic\Validation\FileUploadValidator::getMaxFileSizeBytes()) {
                 echo json_encode(['error' => "File too large. Maximum size is {$max_file_size_mb} MB."]);
                 exit;
             }
@@ -706,7 +714,7 @@ try {
         case 'get_upload_config':
             header('Content-Type: application/json');
 
-            $max_file_size = \platform\AIChatPageComponentConfig::get('max_file_size_mb') ?: 5;
+            $max_file_size = \ILIAS\Plugin\pcaic\Validation\FileUploadValidator::getMaxFileSizeMb();
             $allowed_types = \platform\AIChatPageComponentConfig::get('allowed_file_types') ?: 'txt,md,csv,pdf,jpg,jpeg,png,gif,webp';
 
             echo json_encode([
@@ -798,7 +806,7 @@ try {
                 'rag_mode' => $rag_enabled,
                 'streaming_enabled' => $streaming_enabled,
                 'file_handling_enabled' => $file_handling_enabled,
-                'max_file_size_mb' => (int) (\platform\AIChatPageComponentConfig::get('max_file_size_mb') ?: 5),
+                'max_file_size_mb' => \ILIAS\Plugin\pcaic\Validation\FileUploadValidator::getMaxFileSizeMb(),
                 'max_attachments_per_message' => (int) (\platform\AIChatPageComponentConfig::get('max_attachments_per_message') ?: 5),
                 'max_char_limit' => (int) (\platform\AIChatPageComponentConfig::get('characters_limit') ?: 2000),
                 'max_memory_limit' => (int) (\platform\AIChatPageComponentConfig::get('max_memory_messages') ?: 10)

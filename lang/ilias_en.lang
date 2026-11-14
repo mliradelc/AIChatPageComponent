@@ -108,6 +108,8 @@ config_upload_title#:#File Upload Constraints
 config_upload_info#:#Configure limits for file uploads per message
 config_max_file_size#:#Maximum File Size (MB)
 config_max_file_size_info#:#Maximum size per uploaded file in megabytes
+config_max_file_size_php_limit#:#The PHP configuration of this server currently accepts uploads up to %s MB (upload_max_filesize, post_max_size).
+config_max_file_size_php_warning#:#The maximum file size is set to %d MB, but the PHP configuration of this server only accepts uploads up to %s MB (upload_max_filesize, post_max_size). Larger files fail to upload.
 config_max_attachments#:#Maximum Attachments per Message
 config_max_attachments_info#:#Maximum number of files that can be attached to a single chat message
 config_max_upload_size#:#Maximum Total Upload Size (MB)
