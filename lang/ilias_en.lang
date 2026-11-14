@@ -251,6 +251,7 @@ rag_upload_processing#:#Being processed for the document search …
 rag_upload_completed#:#Ready for the document search
 rag_upload_failed#:#Processing failed, a new attempt follows
 rag_upload_empty#:#No searchable text found
+rag_upload_scanned#:#Ready (scanned document: text recognition may be incomplete)
 stat_is_online#:#Online
 stat_goto_page#:#Go to Page
 stat_toggle_online#:#Set Online

@@ -388,6 +388,7 @@ class AIChatPageComponent {
         completed: container.dataset.ragUploadCompleted || 'Ready for the document search',
         failed: container.dataset.ragUploadFailed || 'Processing failed, a new attempt follows',
         empty: container.dataset.ragUploadEmpty || 'No searchable text found',
+        scanned: container.dataset.ragUploadScanned || 'Ready (scanned document: text recognition may be incomplete)',
       },
       pageLabel: container.dataset.pageLabel || 'Seite',
       pagesLabel: container.dataset.pagesLabel || 'Seiten',

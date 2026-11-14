@@ -1739,7 +1739,8 @@
 }
 
 .ai-chat-rag-status[data-status="failed"],
-.ai-chat-rag-status[data-status="empty"] {
+.ai-chat-rag-status[data-status="empty"],
+.ai-chat-rag-status[data-status="scanned"] {
     border-left: 3px solid var(--chat-warning);
 }
 

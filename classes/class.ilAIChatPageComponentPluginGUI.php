@@ -1647,6 +1647,7 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
         $tpl->setVariable("RAG_UPLOAD_COMPLETED", htmlspecialchars($this->plugin->txt('rag_upload_completed')));
         $tpl->setVariable("RAG_UPLOAD_FAILED", htmlspecialchars($this->plugin->txt('rag_upload_failed')));
         $tpl->setVariable("RAG_UPLOAD_EMPTY", htmlspecialchars($this->plugin->txt('rag_upload_empty')));
+        $tpl->setVariable("RAG_UPLOAD_SCANNED", htmlspecialchars($this->plugin->txt('rag_upload_scanned')));
         $tpl->setVariable("PAGE_LABEL", htmlspecialchars($this->plugin->txt('page_label')));
         $tpl->setVariable("PAGES_LABEL", htmlspecialchars($this->plugin->txt('pages_label')));
         $this->setRenderingLabels($tpl);
