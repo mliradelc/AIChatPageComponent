@@ -236,6 +236,9 @@ rag_file_status_pending#:#Waiting for upload to the document search
 rag_file_status_failed#:#Processing failed
 rag_file_retry_at#:#next attempt from %s
 rag_file_retry_due#:#next attempt on the next use of the chat
+rag_file_no_retry#:#no further attempt; remove the file and upload it again if necessary
+cron_rag_title#:#AI Chat: process files in the document search
+cron_rag_description#:#Queries the processing state of files in the RAG service, uploads failed files again and deletes files that could not be deleted yet. Without this job, this only happens when a chat is used.
 rag_file_status_direct#:#Passed directly to the AI (without document search)
 stat_chat_uploads#:#Files uploaded in the chat (all users)
 rag_upload_processing#:#Being processed for the document search …

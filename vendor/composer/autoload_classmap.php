@@ -29,6 +29,7 @@ return array(
     'ilAIChatPageComponentImporter' => $baseDir . '/classes/class.ilAIChatPageComponentImporter.php',
     'ilAIChatPageComponentPlugin' => $baseDir . '/classes/class.ilAIChatPageComponentPlugin.php',
     'ilAIChatPageComponentPluginGUI' => $baseDir . '/classes/class.ilAIChatPageComponentPluginGUI.php',
+    'ilAIChatPageComponentRAGCronJob' => $baseDir . '/classes/class.ilAIChatPageComponentRAGCronJob.php',
     'platform\\AIChatPageComponentConfig' => $baseDir . '/classes/platform/class.AIChatPageComponentConfig.php',
     'platform\\AIChatPageComponentException' => $baseDir . '/classes/platform/class.AIChatPageComponentException.php',
 );
