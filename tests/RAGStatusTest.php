@@ -71,26 +71,29 @@ class RAGStatusTest extends TestCase
     }
 
     /**
-     * @return array<string, array{int|null, bool|null, string}>
+     * @return array<string, array{int|null, bool|null, bool|null, string}>
      */
     public static function completedStateProvider(): array
     {
         return [
-            'chunks reported' => [12, null, AIChatPageComponentRAGStatus::COMPLETED],
-            'no chunks reported' => [0, null, AIChatPageComponentRAGStatus::EMPTY],
-            'chunk count wins over text check' => [3, false, AIChatPageComponentRAGStatus::COMPLETED],
-            'no count, file without text' => [null, false, AIChatPageComponentRAGStatus::EMPTY],
-            'no count, file with text' => [null, true, AIChatPageComponentRAGStatus::COMPLETED],
-            'nothing known' => [null, null, AIChatPageComponentRAGStatus::COMPLETED],
+            'chunks reported' => [12, null, null, AIChatPageComponentRAGStatus::COMPLETED],
+            'no chunks reported' => [0, null, null, AIChatPageComponentRAGStatus::EMPTY],
+            'chunk count wins over text check' => [3, false, false, AIChatPageComponentRAGStatus::COMPLETED],
+            'no count, file with text' => [null, true, null, AIChatPageComponentRAGStatus::COMPLETED],
+            'file with text is never probed empty' => [null, true, false, AIChatPageComponentRAGStatus::COMPLETED],
+            'nothing known' => [null, null, null, AIChatPageComponentRAGStatus::COMPLETED],
+            'scan, retrieval finds it' => [null, false, true, AIChatPageComponentRAGStatus::SCANNED],
+            'scan, retrieval undecided' => [null, false, null, AIChatPageComponentRAGStatus::SCANNED],
+            'scan, retrieval finds nothing' => [null, false, false, AIChatPageComponentRAGStatus::EMPTY],
         ];
     }
 
     /**
      * @dataProvider completedStateProvider
      */
-    public function testCompletedState(?int $chunks, ?bool $has_text, string $expected): void
+    public function testCompletedState(?int $chunks, ?bool $has_text, ?bool $probe, string $expected): void
     {
-        $this->assertSame($expected, AIChatPageComponentRAGStatus::completedState($chunks, $has_text));
+        $this->assertSame($expected, AIChatPageComponentRAGStatus::completedState($chunks, $has_text, $probe));
     }
 
     public function testPdfWithFontHasText(): void

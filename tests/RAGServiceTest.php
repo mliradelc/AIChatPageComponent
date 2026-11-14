@@ -186,4 +186,25 @@ class RAGServiceTest extends TestCase
         $this->assertNull(AIChatPageComponentRAG::extractChunkCount(['chunk_count' => null]));
         $this->assertNull(AIChatPageComponentRAG::extractChunkCount(['chunk_count' => 'many']));
     }
+
+    public function testProbeFindsChunkOfFile(): void
+    {
+        $chunks = [['file_id' => 'other', 'text' => 'a'], ['file_id' => 'f1', 'text' => 'b']];
+        $this->assertTrue(AIChatPageComponentRAG::evaluateProbe($chunks, 'f1', 20));
+        // Found even if the result is full
+        $this->assertTrue(AIChatPageComponentRAG::evaluateProbe($chunks, 'f1', 2));
+    }
+
+    public function testProbeWithoutChunkOfFileIsEmptyOnlyIfResultIsNotFull(): void
+    {
+        $this->assertFalse(AIChatPageComponentRAG::evaluateProbe([], 'f1', 20));
+        $this->assertFalse(AIChatPageComponentRAG::evaluateProbe([['file_id' => 'other']], 'f1', 20));
+        // Other files may have displaced the file from a full result
+        $this->assertNull(AIChatPageComponentRAG::evaluateProbe([['file_id' => 'a'], ['file_id' => 'b']], 'f1', 2));
+    }
+
+    public function testProbeIsUndecidedIfChunksHaveNoFileId(): void
+    {
+        $this->assertNull(AIChatPageComponentRAG::evaluateProbe([['text' => 'a']], 'f1', 20));
+    }
 }

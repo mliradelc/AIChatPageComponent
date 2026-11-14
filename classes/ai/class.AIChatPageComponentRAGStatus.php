@@ -33,8 +33,10 @@ class AIChatPageComponentRAGStatus
     public const COMPLETED = 'completed';
     public const FAILED = 'failed';
     public const SKIPPED = 'skipped';
-    /** Processed by the RAG, but without searchable content (e.g. a scanned PDF without text) */
+    /** Processed by the RAG, but the retrieval finds no content (e.g. a scan the text recognition could not read) */
     public const EMPTY = 'empty';
+    /** Processed and usable, but the file is a scan: the content depends on the text recognition of the RAG */
+    public const SCANNED = 'scanned';
 
     /** @var int Minimum interval between two status checks of a chat, in seconds */
     public const CHECK_INTERVAL = 60;
@@ -80,20 +82,25 @@ class AIChatPageComponentRAGStatus
     /**
      * Final state of a file the RAG reports as completed
      *
-     * A file without chunks is never found by the retrieval. The chunk count of the
-     * RAG decides; if the RAG does not report one, a file without text is treated
-     * as empty.
+     * The chunk count of the RAG decides if it reports one. Otherwise a file with
+     * text is completed. A file without text (a scan) is usable if the text
+     * recognition of the RAG read it, which only the retrieval shows: it is empty if
+     * the probe found nothing, and marked as a scan otherwise.
      *
      * @param int|null $chunks Chunk count reported by the RAG, null if unknown
      * @param bool|null $has_text Whether the file contains text, null if unknown
+     * @param bool|null $probe Result of AIChatPageComponentRAG::probeFile(), null if undecided or not asked
      */
-    public static function completedState(?int $chunks, ?bool $has_text): string
+    public static function completedState(?int $chunks, ?bool $has_text, ?bool $probe = null): string
     {
         if ($chunks !== null) {
             return $chunks > 0 ? self::COMPLETED : self::EMPTY;
         }
+        if ($has_text !== false) {
+            return self::COMPLETED;
+        }
 
-        return $has_text === false ? self::EMPTY : self::COMPLETED;
+        return $probe === false ? self::EMPTY : self::SCANNED;
     }
 
     /**
@@ -166,6 +173,19 @@ class AIChatPageComponentRAGStatus
             self::logger()->debug("Text check of attachment $attachment_id failed: " . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Title of the file of an attachment, used as search text of the probe
+     */
+    private static function attachmentTitle(int $attachment_id): string
+    {
+        try {
+            $title = (new \ILIAS\Plugin\pcaic\Model\Attachment($attachment_id))->getTitle();
+        } catch (\Throwable $e) {
+            $title = '';
+        }
+        return trim(preg_replace('/\.[A-Za-z0-9]+$/', '', (string) $title)) ?: 'document';
     }
 
     public static function markUploaded(int $attachment_id): void
@@ -247,7 +267,7 @@ class AIChatPageComponentRAGStatus
         $db = self::db();
         $rag = new AIChatPageComponentRAG();
         $result = $db->query(
-            "SELECT a.id, a.rag_remote_file_id, a.background_file, a.chat_id, m.session_id"
+            "SELECT a.id, a.rag_remote_file_id, a.rag_collection_id, a.background_file, a.chat_id, m.session_id"
             . " FROM pcaic_attachments a LEFT JOIN pcaic_messages m ON m.message_id = a.message_id"
             . " WHERE a.chat_id = " . $db->quote($chat_id, 'text')
             . " AND a.rag_status = " . $db->quote(self::PROCESSING, 'text')
@@ -265,12 +285,19 @@ class AIChatPageComponentRAGStatus
             switch (self::mapRemoteStatus($status['status'])) {
                 case self::COMPLETED:
                     $chunks = $status['chunks'] ?? null;
-                    $state = self::completedState(
-                        $chunks,
-                        $chunks === null ? self::attachmentHasText((int) $row['id']) : null
-                    );
-                    if ($state === self::EMPTY) {
-                        self::logger()->warning("RAG processed attachment " . $row['id'] . " without searchable content");
+                    $has_text = $chunks === null ? self::attachmentHasText((int) $row['id']) : null;
+                    // A scan is only searchable if the text recognition of the RAG read it: ask the retrieval once
+                    $probe = $chunks === null && $has_text === false
+                        ? $rag->probeFile(
+                            (string) $row['rag_remote_file_id'],
+                            (string) ($row['rag_collection_id'] ?? ''),
+                            self::attachmentTitle((int) $row['id'])
+                        )
+                        : null;
+                    $state = self::completedState($chunks, $has_text, $probe);
+                    if ($state !== self::COMPLETED) {
+                        self::logger()->warning("RAG processed attachment " . $row['id'] . " as " . $state
+                            . ($state === self::EMPTY ? ": no searchable content" : ": scan, content depends on text recognition"));
                     }
                     $db->manipulate(
                         "UPDATE pcaic_attachments SET rag_status = " . $db->quote($state, 'text')

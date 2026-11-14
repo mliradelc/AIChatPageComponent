@@ -1179,6 +1179,7 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
         $groups = array_fill_keys([
             'rag_file_status_failed',
             'rag_file_status_empty',
+            'rag_file_status_scanned',
             'rag_file_status_processing',
             'rag_file_status_pending',
             'rag_file_status_completed',
@@ -1247,6 +1248,8 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
                 return 'rag_file_status_failed';
             case \ai\AIChatPageComponentRAGStatus::EMPTY:
                 return 'rag_file_status_empty';
+            case \ai\AIChatPageComponentRAGStatus::SCANNED:
+                return 'rag_file_status_scanned';
             case \ai\AIChatPageComponentRAGStatus::SKIPPED:
                 return 'rag_file_status_direct';
             default:

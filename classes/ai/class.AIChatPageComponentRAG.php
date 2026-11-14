@@ -53,6 +53,9 @@ class AIChatPageComponentRAG
     /** @var int Default maximum number of chunks selected by the reranker */
     public const DEFAULT_TOP_K = 10;
 
+    /** @var int Number of chunks requested by probeFile() */
+    public const PROBE_TOP_K = 20;
+
     /** Processing states reported by the RAG */
     public const STATUS_PENDING = 'PENDING';
     public const STATUS_PROCESSING = 'PROCESSING';
@@ -499,6 +502,68 @@ class AIChatPageComponentRAG
             'messages' => $data['messages'],
             'chunks' => $chunks
         ];
+    }
+
+    /**
+     * Ask the retrieval once whether it finds any passage of a file
+     *
+     * The status of the RAG contains no chunk count, so this is the only way to see
+     * whether a processed file is searchable. Used for files that look like scans.
+     *
+     * @param string $query Text the passages are searched with, e.g. the file name
+     * @return bool|null True: a passage of the file was found. False: the retrieval returned
+     *                   nothing of the file. Null: undecided (error, or other files filled the result)
+     */
+    public function probeFile(string $remote_file_id, string $collection_id, string $query): ?bool
+    {
+        if (self::getApiUrl() === '' || self::getClientKey() === '' || $collection_id === '') {
+            return null;
+        }
+
+        [$response, $http_code] = $this->request(
+            $this->getEndpointUrl(self::ENDPOINT_AUGMENTATION),
+            json_encode([
+                'messages' => [['role' => 'user', 'content' => $query]],
+                'collection_ids' => [$collection_id],
+                'top_k' => self::PROBE_TOP_K
+            ]),
+            ['Content-Type: application/json'],
+            30
+        );
+
+        $data = $response === false || $http_code !== 200 ? null : json_decode((string) $response, true);
+        if (!is_array($data) || !is_array($data['chunks'] ?? null)) {
+            $this->logger->debug("RAG probe of $remote_file_id failed: HTTP $http_code");
+            return null;
+        }
+
+        $found = self::evaluateProbe($data['chunks'], $remote_file_id, self::PROBE_TOP_K);
+        $this->logger->debug("RAG probe of $remote_file_id: chunks=" . count($data['chunks'])
+            . " | result=" . var_export($found, true));
+        return $found;
+    }
+
+    /**
+     * Whether the chunks of a probe show that a file is searchable
+     *
+     * No chunk of the file only proves an empty file if the result is not full:
+     * a full result may consist of passages of other files of the collection.
+     *
+     * @param int $top_k Number of chunks that was requested
+     * @return bool|null Null if undecided
+     */
+    public static function evaluateProbe(array $chunks, string $remote_file_id, int $top_k): ?bool
+    {
+        $unknown_origin = false;
+        foreach ($chunks as $chunk) {
+            if (!is_array($chunk) || !isset($chunk['file_id'])) {
+                $unknown_origin = true;
+            } elseif ((string) $chunk['file_id'] === $remote_file_id) {
+                return true;
+            }
+        }
+
+        return $unknown_origin || count($chunks) >= $top_k ? null : false;
     }
 
     /**
