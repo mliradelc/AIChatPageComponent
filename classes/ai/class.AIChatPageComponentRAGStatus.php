@@ -33,6 +33,10 @@ class AIChatPageComponentRAGStatus
     public const COMPLETED = 'completed';
     public const FAILED = 'failed';
     public const SKIPPED = 'skipped';
+    /** Processed by the RAG, but the retrieval finds no content (e.g. a scan the text recognition could not read) */
+    public const EMPTY = 'empty';
+    /** Processed and usable, but the file is a scan: the content depends on the text recognition of the RAG */
+    public const SCANNED = 'scanned';
 
     /** @var int Minimum interval between two status checks of a chat, in seconds */
     public const CHECK_INTERVAL = 60;
@@ -73,6 +77,115 @@ class AIChatPageComponentRAGStatus
             default:
                 return self::PROCESSING;
         }
+    }
+
+    /**
+     * Final state of a file the RAG reports as completed
+     *
+     * The chunk count of the RAG decides if it reports one. Otherwise a file with
+     * text is completed. A file without text (a scan) is usable if the text
+     * recognition of the RAG read it, which only the retrieval shows: it is empty if
+     * the probe found nothing, and marked as a scan otherwise.
+     *
+     * @param int|null $chunks Chunk count reported by the RAG, null if unknown
+     * @param bool|null $has_text Whether the file contains text, null if unknown
+     * @param bool|null $probe Result of AIChatPageComponentRAG::probeFile(), null if undecided or not asked
+     */
+    public static function completedState(?int $chunks, ?bool $has_text, ?bool $probe = null): string
+    {
+        if ($chunks !== null) {
+            return $chunks > 0 ? self::COMPLETED : self::EMPTY;
+        }
+        if ($has_text !== false) {
+            return self::COMPLETED;
+        }
+
+        return $probe === false ? self::EMPTY : self::SCANNED;
+    }
+
+    /**
+     * Whether a file contains text the RAG can index
+     *
+     * PDFs: text needs a font, so a PDF without any font resource consists of images
+     * only (e.g. a scan without OCR). Fonts may be stored in compressed object streams.
+     *
+     * @return bool|null Null if it cannot be decided (other file types, encrypted or unreadable PDFs)
+     */
+    public static function hasText(string $content, string $suffix): ?bool
+    {
+        $suffix = strtolower($suffix);
+        if (in_array($suffix, ['txt', 'csv', 'md'], true)) {
+            return trim($content) !== '';
+        }
+        if ($suffix !== 'pdf' || strncmp($content, '%PDF-', 5) !== 0) {
+            return null;
+        }
+        if (strpos($content, '/Font') !== false) {
+            return true;
+        }
+        if (strpos($content, '/Encrypt') !== false) {
+            return null;
+        }
+
+        // Not found in plain objects: search the compressed object streams
+        $undecided = false;
+        $offset = 0;
+        while (($position = strpos($content, '/ObjStm', $offset)) !== false) {
+            $offset = $position + 7;
+            $start = strpos($content, 'stream', $offset);
+            $end = $start === false ? false : strpos($content, 'endstream', $start);
+            if ($start === false || $end === false) {
+                break;
+            }
+            $offset = $end;
+
+            $compressed = ltrim(substr($content, $start + 6, $end - $start - 6), "\r\n");
+            $data = @gzuncompress($compressed, 16 * 1024 * 1024);
+            if ($data === false) {
+                $undecided = true;
+            } elseif (strpos($data, '/Font') !== false) {
+                return true;
+            }
+        }
+
+        return $undecided ? null : false;
+    }
+
+    /**
+     * Whether the stored file of an attachment contains text, see hasText()
+     */
+    private static function attachmentHasText(int $attachment_id): ?bool
+    {
+        try {
+            global $DIC;
+            $irss = $DIC->resourceStorage();
+            $attachment = \ILIAS\Plugin\pcaic\Model\Attachment::loadById($attachment_id);
+            $identification = $attachment !== null ? $attachment->getResourceIdentification() : null;
+            if ($identification === null) {
+                return null;
+            }
+            $suffix = (string) $irss->manage()->getCurrentRevision($identification)->getInformation()->getSuffix();
+            if (!in_array(strtolower($suffix), ['pdf', 'txt', 'csv', 'md'], true)) {
+                return null;
+            }
+            return self::hasText((string) $irss->consume()->stream($identification)->getStream()->getContents(), $suffix);
+        } catch (\Throwable $e) {
+            self::logger()->debug("Text check of attachment $attachment_id failed: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Title of the file of an attachment, used as search text of the probe
+     */
+    private static function attachmentTitle(int $attachment_id): string
+    {
+        try {
+            $title = (new \ILIAS\Plugin\pcaic\Model\Attachment($attachment_id))->getTitle();
+        } catch (\Throwable $e) {
+            $title = '';
+        }
+        return trim(preg_replace('/\.[A-Za-z0-9]+$/', '', (string) $title)) ?: 'document';
     }
 
     public static function markUploaded(int $attachment_id): void
@@ -154,7 +267,7 @@ class AIChatPageComponentRAGStatus
         $db = self::db();
         $rag = new AIChatPageComponentRAG();
         $result = $db->query(
-            "SELECT a.id, a.rag_remote_file_id, a.background_file, a.chat_id, m.session_id"
+            "SELECT a.id, a.rag_remote_file_id, a.rag_collection_id, a.background_file, a.chat_id, m.session_id"
             . " FROM pcaic_attachments a LEFT JOIN pcaic_messages m ON m.message_id = a.message_id"
             . " WHERE a.chat_id = " . $db->quote($chat_id, 'text')
             . " AND a.rag_status = " . $db->quote(self::PROCESSING, 'text')
@@ -171,8 +284,23 @@ class AIChatPageComponentRAGStatus
 
             switch (self::mapRemoteStatus($status['status'])) {
                 case self::COMPLETED:
+                    $chunks = $status['chunks'] ?? null;
+                    $has_text = $chunks === null ? self::attachmentHasText((int) $row['id']) : null;
+                    // A scan is only searchable if the text recognition of the RAG read it: ask the retrieval once
+                    $probe = $chunks === null && $has_text === false
+                        ? $rag->probeFile(
+                            (string) $row['rag_remote_file_id'],
+                            (string) ($row['rag_collection_id'] ?? ''),
+                            self::attachmentTitle((int) $row['id'])
+                        )
+                        : null;
+                    $state = self::completedState($chunks, $has_text, $probe);
+                    if ($state !== self::COMPLETED) {
+                        self::logger()->warning("RAG processed attachment " . $row['id'] . " as " . $state
+                            . ($state === self::EMPTY ? ": no searchable content" : ": scan, content depends on text recognition"));
+                    }
                     $db->manipulate(
-                        "UPDATE pcaic_attachments SET rag_status = " . $db->quote(self::COMPLETED, 'text')
+                        "UPDATE pcaic_attachments SET rag_status = " . $db->quote($state, 'text')
                         . ", rag_status_error = NULL, rag_failed_count = 0, rag_retry_at = NULL"
                         . " WHERE id = " . $db->quote((int) $row['id'], 'integer')
                     );
