@@ -1178,6 +1178,8 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
         // Files by processing state; problems first
         $groups = array_fill_keys([
             'rag_file_status_failed',
+            'rag_file_status_empty',
+            'rag_file_status_scanned',
             'rag_file_status_processing',
             'rag_file_status_pending',
             'rag_file_status_completed',
@@ -1197,6 +1199,17 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
             if ($titles !== []) {
                 $label = $this->plugin->txt($status) . ' (' . count($titles) . ')';
                 $items[$label] = $ui_factory->listing()->unordered($titles);
+            }
+        }
+
+        // Files uploaded by users in the chat: numbers only, the files belong to the users
+        if ($rag_enabled) {
+            $upload_states = [];
+            foreach (\ai\AIChatPageComponentRAGStatus::countChatUploadStates($chat_id) as $state => $count) {
+                $upload_states[] = $this->plugin->txt($this->getRagFileStatusKey(true, $state)) . ' (' . $count . ')';
+            }
+            if ($upload_states !== []) {
+                $items[$this->plugin->txt('stat_chat_uploads')] = $ui_factory->listing()->unordered($upload_states);
             }
         }
 
@@ -1244,6 +1257,10 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
                 return 'rag_file_status_processing';
             case \ai\AIChatPageComponentRAGStatus::FAILED:
                 return 'rag_file_status_failed';
+            case \ai\AIChatPageComponentRAGStatus::EMPTY:
+                return 'rag_file_status_empty';
+            case \ai\AIChatPageComponentRAGStatus::SCANNED:
+                return 'rag_file_status_scanned';
             case \ai\AIChatPageComponentRAGStatus::SKIPPED:
                 return 'rag_file_status_direct';
             default:
@@ -1626,6 +1643,11 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
 
         $tpl->setVariable("SOURCES_LABEL", htmlspecialchars($this->plugin->txt('sources_label')));
         $tpl->setVariable("RAG_INCOMPLETE_NOTICE", htmlspecialchars($this->plugin->txt('rag_incomplete_notice')));
+        $tpl->setVariable("RAG_UPLOAD_PROCESSING", htmlspecialchars($this->plugin->txt('rag_upload_processing')));
+        $tpl->setVariable("RAG_UPLOAD_COMPLETED", htmlspecialchars($this->plugin->txt('rag_upload_completed')));
+        $tpl->setVariable("RAG_UPLOAD_FAILED", htmlspecialchars($this->plugin->txt('rag_upload_failed')));
+        $tpl->setVariable("RAG_UPLOAD_EMPTY", htmlspecialchars($this->plugin->txt('rag_upload_empty')));
+        $tpl->setVariable("RAG_UPLOAD_SCANNED", htmlspecialchars($this->plugin->txt('rag_upload_scanned')));
         $tpl->setVariable("PAGE_LABEL", htmlspecialchars($this->plugin->txt('page_label')));
         $tpl->setVariable("PAGES_LABEL", htmlspecialchars($this->plugin->txt('pages_label')));
         $this->setRenderingLabels($tpl);
@@ -1635,9 +1657,7 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
         $tpl->setVariable("SOURCE_NEXT", htmlspecialchars($this->plugin->txt('source_next')));
         $tpl->setVariable("SCROLL_TO_BOTTOM", htmlspecialchars($this->plugin->txt('scroll_to_bottom')));
 
-        $max_size_config = \platform\AIChatPageComponentConfig::get('max_file_size_mb');
-        $max_size_mb = $max_size_config ? (int) $max_size_config : 5;
-        $tpl->setVariable("MAX_FILE_SIZE_MB", $max_size_mb);
+        $tpl->setVariable("MAX_FILE_SIZE_MB", FileUploadValidator::getMaxFileSizeMb());
 
         $max_attachments_config = \platform\AIChatPageComponentConfig::get('max_attachments_per_message');
         $max_attachments = $max_attachments_config ? (int) $max_attachments_config : 5;
@@ -1664,9 +1684,7 @@ class ilAIChatPageComponentPluginGUI extends ilPageComponentPluginGUI
         }
 
         $error_max_attachments = sprintf($error_max_attachments_template, $max_attachments);
-        $max_file_size_mb_config = \platform\AIChatPageComponentConfig::get('max_file_size_mb');
-        $max_file_size_mb = $max_file_size_mb_config ? (int) $max_file_size_mb_config : 5;
-        $error_file_too_large = sprintf($error_file_too_large_template, $max_file_size_mb);
+        $error_file_too_large = sprintf($error_file_too_large_template, FileUploadValidator::getMaxFileSizeMb());
 
         // These messages are completed by JavaScript with runtime values
         $error_file_type_not_allowed = $error_file_type_not_allowed_template;

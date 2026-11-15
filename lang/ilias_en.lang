@@ -91,6 +91,8 @@ config_force_default_ai_service_info#:#When enabled, all chat instances will be 
 tab_general_config#:#General Configuration
 config_service_enabled#:#Enable Service
 config_service_enabled_info#:#When enabled, this service will be available as an AI service option for chat instances
+config_service_label#:#Display Name
+config_service_label_info#:#Name shown for this service in the configuration tabs and in the service selection of chats, e.g. the name of the provider whose API is configured below. Leave empty to use "%s".
 config_api_url#:#API Base URL
 config_api_url_info#:#Base URL for API endpoints. Specific endpoints like /v1/chat/completions or /v1/models are automatically appended.
 config_api_token#:#API Token
@@ -108,6 +110,8 @@ config_upload_title#:#File Upload Constraints
 config_upload_info#:#Configure limits for file uploads per message
 config_max_file_size#:#Maximum File Size (MB)
 config_max_file_size_info#:#Maximum size per uploaded file in megabytes
+config_max_file_size_php_limit#:#The PHP configuration of this server currently accepts uploads up to %s MB (upload_max_filesize, post_max_size).
+config_max_file_size_php_warning#:#The maximum file size is set to %d MB, but the PHP configuration of this server only accepts uploads up to %s MB (upload_max_filesize, post_max_size). Larger files fail to upload.
 config_max_attachments#:#Maximum Attachments per Message
 config_max_attachments_info#:#Maximum number of files that can be attached to a single chat message
 config_max_upload_size#:#Maximum Total Upload Size (MB)
@@ -234,12 +238,20 @@ rag_file_status_completed#:#Processed by the document search
 rag_file_status_processing#:#Being processed by the document search
 rag_file_status_pending#:#Waiting for upload to the document search
 rag_file_status_failed#:#Processing failed
+rag_file_status_empty#:#Processed, but the document search finds no content (e.g. a scan whose text could not be recognised)
+rag_file_status_scanned#:#Processed (scanned document: text recognition may be incomplete)
 rag_file_retry_at#:#next attempt from %s
 rag_file_retry_due#:#next attempt on the next use of the chat
 rag_file_no_retry#:#no further attempt; remove the file and upload it again if necessary
 cron_rag_title#:#AI Chat: process files in the document search
 cron_rag_description#:#Queries the processing state of files in the RAG service, uploads failed files again and deletes files that could not be deleted yet. Without this job, this only happens when a chat is used.
 rag_file_status_direct#:#Passed directly to the AI (without document search)
+stat_chat_uploads#:#Files uploaded in the chat (all users)
+rag_upload_processing#:#Being processed for the document search …
+rag_upload_completed#:#Ready for the document search
+rag_upload_failed#:#Processing failed, a new attempt follows
+rag_upload_empty#:#No searchable text found
+rag_upload_scanned#:#Ready (scanned document: text recognition may be incomplete)
 stat_is_online#:#Online
 stat_goto_page#:#Go to Page
 stat_toggle_online#:#Set Online

@@ -142,7 +142,7 @@ class AIChatPageComponentLLMRegistry
         $options = [];
 
         foreach ($services as $service_id => $service_class) {
-            $options[$service_id] = $service_class::getServiceName();
+            $options[$service_id] = $service_class::getDisplayName();
         }
 
         return $options;

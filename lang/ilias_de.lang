@@ -91,6 +91,8 @@ config_force_default_ai_service_info#:#Wenn aktiviert, werden alle Chat-Instanze
 tab_general_config#:#Allgemeine Konfiguration
 config_service_enabled#:#Service aktivieren
 config_service_enabled_info#:#Wenn aktiviert, steht dieser Service als KI-Service-Option für Chat-Instanzen zur Verfügung
+config_service_label#:#Anzeigename
+config_service_label_info#:#Name, unter dem dieser Service in den Konfigurations-Tabs und in der Service-Auswahl der Chats angezeigt wird, z. B. der Name des Anbieters, dessen API unten eingetragen ist. Leer lassen, um „%s“ zu verwenden.
 config_api_url#:#API Basis-URL
 config_api_url_info#:#Basis-URL für API-Endpunkte. Spezifische Endpunkte wie /v1/chat/completions oder /v1/models werden automatisch angehängt.
 config_api_token#:#API Token
@@ -108,6 +110,8 @@ config_upload_title#:#Datei-Upload Beschränkungen
 config_upload_info#:#Limits für Datei-Uploads pro Nachricht konfigurieren
 config_max_file_size#:#Maximale Dateigröße (MB)
 config_max_file_size_info#:#Maximale Größe pro hochgeladener Datei in Megabyte
+config_max_file_size_php_limit#:#Die PHP-Konfiguration dieses Servers akzeptiert derzeit Uploads bis %s MB (upload_max_filesize, post_max_size).
+config_max_file_size_php_warning#:#Die maximale Dateigröße ist auf %d MB eingestellt, die PHP-Konfiguration dieses Servers akzeptiert aber nur Uploads bis %s MB (upload_max_filesize, post_max_size). Größere Dateien können nicht hochgeladen werden.
 config_max_attachments#:#Maximale Anhänge pro Nachricht
 config_max_attachments_info#:#Maximale Anzahl Dateien pro Chat-Nachricht
 config_max_upload_size#:#Maximale Gesamt-Upload-Größe (MB)
@@ -234,12 +238,20 @@ rag_file_status_completed#:#Von der Dokumentensuche verarbeitet
 rag_file_status_processing#:#Wird von der Dokumentensuche verarbeitet
 rag_file_status_pending#:#Wartet auf Übertragung an die Dokumentensuche
 rag_file_status_failed#:#Verarbeitung fehlgeschlagen
+rag_file_status_empty#:#Verarbeitet, aber die Dokumentensuche findet keinen Inhalt (z. B. Scan, dessen Text nicht erkannt wurde)
+rag_file_status_scanned#:#Verarbeitet (gescanntes Dokument: die Texterkennung kann unvollständig sein)
 rag_file_retry_at#:#neuer Versuch ab %s
 rag_file_retry_due#:#neuer Versuch bei der nächsten Nutzung des Chats
 rag_file_no_retry#:#kein weiterer Versuch; Datei bei Bedarf entfernen und erneut hochladen
 cron_rag_title#:#AI Chat: Dateien in der Dokumentensuche verarbeiten
 cron_rag_description#:#Fragt den Verarbeitungsstatus von Dateien im RAG-Dienst ab, lädt fehlgeschlagene Dateien erneut hoch und löscht Dateien, die noch nicht gelöscht werden konnten. Ohne diesen Job geschieht das nur, wenn ein Chat genutzt wird.
 rag_file_status_direct#:#Wird direkt an die KI übergeben (ohne Dokumentensuche)
+stat_chat_uploads#:#Im Chat hochgeladene Dateien (alle Nutzer)
+rag_upload_processing#:#Wird für die Dokumentensuche verarbeitet …
+rag_upload_completed#:#Bereit für die Dokumentensuche
+rag_upload_failed#:#Verarbeitung fehlgeschlagen, ein neuer Versuch folgt
+rag_upload_empty#:#Kein durchsuchbarer Text gefunden
+rag_upload_scanned#:#Bereit (gescanntes Dokument: die Texterkennung kann unvollständig sein)
 stat_is_online#:#Online
 stat_goto_page#:#Zur Seite springen
 stat_toggle_online#:#Online schalten

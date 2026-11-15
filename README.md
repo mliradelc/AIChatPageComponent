@@ -163,6 +163,7 @@ Each AI service has its own tab with the same structure:
 | Setting | Description |
 |---|---|
 | Enable service | Makes the service available |
+| Display name | Name of the service in the configuration tabs and in the service selection of chats. The built-in names (KI:connect.nrw, OpenAI GPT) describe the default endpoints; set a name if another OpenAI-compatible provider is configured in the tab. Internal IDs and settings are not affected |
 | API base URL | e.g. `https://chat.kiconnect.nrw/api/v1` or `https://api.openai.com`; URLs with or without `/v1` are accepted |
 | API token | Token of the service |
 | Default model / Force default model | Default model; if forced, editors cannot choose a model |

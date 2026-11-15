@@ -73,6 +73,11 @@ class AIChatPageComponentOpenAI extends AIChatPageComponentLLM
             $plugin->txt('config_service_enabled_info')
         )->withValue($openai_enabled === '1');
 
+        $inputs['openai_service_label'] = $ui_factory->input()->field()->text(
+            $plugin->txt('config_service_label'),
+            sprintf($plugin->txt('config_service_label_info'), self::getServiceName())
+        )->withMaxLength(100)->withValue((string) (\platform\AIChatPageComponentConfig::get('openai_service_label') ?? ''));
+
         $api_url = \platform\AIChatPageComponentConfig::get('openai_api_url');
         $inputs['openai_api_url'] = $ui_factory->input()->field()->text(
             $plugin->txt('config_api_url'),

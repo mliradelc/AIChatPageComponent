@@ -379,6 +379,15 @@ try {
                 exit;
             }
 
+            $max_file_size_mb = \ILIAS\Plugin\pcaic\Validation\FileUploadValidator::getMaxFileSizeMb();
+
+            // Rejected by PHP (upload_max_filesize) before the plugin limit could be checked
+            if (in_array($uploaded_file->getError(), [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+                $logger->warning("Chat upload rejected by the PHP upload limit; the plugin allows {$max_file_size_mb} MB");
+                echo json_encode(['error' => 'File too large. The server does not accept files of this size.']);
+                exit;
+            }
+
             if ($uploaded_file->getError() !== UPLOAD_ERR_OK) {
                 echo json_encode(['error' => 'File upload failed']);
                 exit;
@@ -393,8 +402,7 @@ try {
             }
 
             // Enforced here, the browser check can be bypassed
-            $max_file_size_mb = (int) (\platform\AIChatPageComponentConfig::get('max_file_size_mb') ?: 5);
-            if ((int) $uploaded_file->getSize() > $max_file_size_mb * 1024 * 1024) {
+            if ((int) $uploaded_file->getSize() > \ILIAS\Plugin\pcaic\Validation\FileUploadValidator::getMaxFileSizeBytes()) {
                 echo json_encode(['error' => "File too large. Maximum size is {$max_file_size_mb} MB."]);
                 exit;
             }
@@ -441,6 +449,7 @@ try {
                 $attachment->save();
 
                 $enable_rag = $rag_enabled;
+                $rag_pending = false;
 
                 $revision = $resource_storage->manage()->getCurrentRevision($resource_id);
                 $suffix = strtolower($revision->getInformation()->getSuffix());
@@ -457,31 +466,46 @@ try {
                         $original_filename = $revision->getTitle();
                         $safe_filename = preg_replace('/[^a-zA-Z0-9_.-]/', '_', $original_filename);
                         $temp_file = sys_get_temp_dir() . '/' . uniqid() . '_' . $safe_filename;
-                        file_put_contents($temp_file, $content);
 
-                        $logger->debug("Prepared temp file for RAG upload: $temp_file | original=$original_filename | size=" . strlen($content) . " | suffix=$suffix");
+                        try {
+                            file_put_contents($temp_file, $content);
 
-                        $session = ChatSession::getOrCreateForUserAndChat($user_id, $chat_id);
-                        $session_id = $session->getSessionId();
+                            $logger->debug("Prepared temp file for RAG upload: $temp_file | original=$original_filename | size=" . strlen($content) . " | suffix=$suffix");
 
-                        $rag_response = $llm->uploadFileToRAG($temp_file, (string) $session_id, $original_filename);
+                            $session = ChatSession::getOrCreateForUserAndChat($user_id, $chat_id);
+                            $session_id = $session->getSessionId();
 
-                        $attachment->setRAGCollectionId($rag_response['collection_id']);
-                        $attachment->setRAGRemoteFileId($rag_response['remote_file_id']);
-                        $attachment->setRAGUploadedAt(date('Y-m-d H:i:s'));
-                        $attachment->save();
-                        \ai\AIChatPageComponentRAGStatus::markUploaded((int) $attachment->getId());
+                            $rag_response = $llm->uploadFileToRAG($temp_file, (string) $session_id, $original_filename);
 
-                        @unlink($temp_file);
+                            $attachment->setRAGCollectionId($rag_response['collection_id']);
+                            $attachment->setRAGRemoteFileId($rag_response['remote_file_id']);
+                            $attachment->setRAGUploadedAt(date('Y-m-d H:i:s'));
+                            $attachment->save();
+                            \ai\AIChatPageComponentRAGStatus::markUploaded((int) $attachment->getId());
+                        } catch (\Exception $e) {
+                            // The file is stored; it is sent to the RAG again when the message is sent
+                            $rag_pending = true;
+                            $logger->warning("RAG upload of chat attachment " . $attachment->getId()
+                                . " failed, it is repeated when the message is sent: " . $e->getMessage());
+                        } finally {
+                            @unlink($temp_file);
+                        }
                     } else {
                         // Other types (e.g. images) are sent to the AI service directly
                         $logger->debug("File type '$suffix' is not a RAG type — storing for multimodal embedding");
                     }
                 }
 
+                // Read the processing state set by the RAG upload
+                $attachment->load();
+                $attachment_data = $attachment->toArray();
+                if ($rag_pending) {
+                    $attachment_data['rag_status'] = 'pending';
+                }
+
                 echo json_encode([
                     'success' => true,
-                    'attachment' => $attachment->toArray()
+                    'attachment' => $attachment_data
                 ]);
 
             } catch (\Exception $e) {
@@ -490,6 +514,43 @@ try {
                 ]);
                 echo json_encode(['error' => 'File upload failed. Please try again.']);
             }
+            break;
+
+        case 'rag_status':
+            header('Content-Type: application/json');
+
+            // Processing state of the chat uploads of the user in the RAG
+            if ($is_anonymous) {
+                echo json_encode(['success' => true, 'files' => new \stdClass()]);
+                exit;
+            }
+
+            $chat_config = new ChatConfig($chat_id);
+            if (!$chat_config->exists()) {
+                echo json_encode(['error' => 'Chat not found']);
+                exit;
+            }
+
+            if (!checkChatAccess($chat_config)) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Access denied']);
+                exit;
+            }
+
+            try {
+                $llm = createLLMInstance(getEffectiveAiService($chat_config));
+                if (isRagEnabledForChat($chat_config, $llm)) {
+                    // Queries the RAG only if the last check of the chat is old enough
+                    \ai\AIChatPageComponentRAGStatus::refreshChat($chat_id);
+                }
+            } catch (\Exception $e) {
+                $logger->warning("RAG status check failed: " . $e->getMessage());
+            }
+
+            echo json_encode([
+                'success' => true,
+                'files' => (object) \ai\AIChatPageComponentRAGStatus::getChatUploadStates($chat_id, $user_id)
+            ]);
             break;
 
         case 'load_chat':
@@ -653,7 +714,7 @@ try {
         case 'get_upload_config':
             header('Content-Type: application/json');
 
-            $max_file_size = \platform\AIChatPageComponentConfig::get('max_file_size_mb') ?: 5;
+            $max_file_size = \ILIAS\Plugin\pcaic\Validation\FileUploadValidator::getMaxFileSizeMb();
             $allowed_types = \platform\AIChatPageComponentConfig::get('allowed_file_types') ?: 'txt,md,csv,pdf,jpg,jpeg,png,gif,webp';
 
             echo json_encode([
@@ -745,7 +806,7 @@ try {
                 'rag_mode' => $rag_enabled,
                 'streaming_enabled' => $streaming_enabled,
                 'file_handling_enabled' => $file_handling_enabled,
-                'max_file_size_mb' => (int) (\platform\AIChatPageComponentConfig::get('max_file_size_mb') ?: 5),
+                'max_file_size_mb' => \ILIAS\Plugin\pcaic\Validation\FileUploadValidator::getMaxFileSizeMb(),
                 'max_attachments_per_message' => (int) (\platform\AIChatPageComponentConfig::get('max_attachments_per_message') ?: 5),
                 'max_char_limit' => (int) (\platform\AIChatPageComponentConfig::get('characters_limit') ?: 2000),
                 'max_memory_limit' => (int) (\platform\AIChatPageComponentConfig::get('max_memory_messages') ?: 10)
